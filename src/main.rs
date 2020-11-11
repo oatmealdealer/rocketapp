@@ -1,7 +1,12 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 use rocket::http::RawStr;
-
+use diesel::PgConnection;
 #[macro_use] extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
+
+#[database("diesel_postgres")]
+struct PgDbConn(PgConnection);
+
 
 #[get("/<greeting>/<person>")]
 fn index(person: &RawStr, greeting: &RawStr) -> String {
@@ -9,5 +14,5 @@ fn index(person: &RawStr, greeting: &RawStr) -> String {
 }
 
 fn main() {
-    rocket::ignite().mount("/", routes![index]).launch();
+    rocket::ignite().attach(PgDbConn::fairing()).mount("/", routes![index]).launch();
 }
