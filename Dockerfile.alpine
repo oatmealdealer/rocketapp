@@ -1,0 +1,39 @@
+# FROM ekidd/rust-musl-builder:nightly as builder
+FROM rustlang/rust:nightly as builder
+
+RUN USER=root cargo new --bin rocketapp
+WORKDIR ./rocketapp
+COPY ./Cargo.toml ./Cargo.toml
+RUN cargo build --release
+RUN rm src/*.rs
+
+ADD . ./
+
+# RUN rm ./target/x86_64-unknown-linux-musl/release/deps/rocketapp*
+RUN rm ./target/release/deps/rocketapp*
+RUN cargo build --release
+
+FROM alpine:latest
+
+ARG APP=/usr/src/app
+EXPOSE 8000
+
+ENV TZ=Etc/UTC \
+    APP_USER=appuser
+
+RUN addgroup -S $APP_USER \
+    && adduser -S -g $APP_USER $APP_USER
+
+RUN apk update \
+    && apk add --no-cache ca-certificates tzdata postgresql-dev \
+    && rm -rf /var/cache/apk/*
+
+# COPY --from=builder /home/rust/src/rocketapp/target/x86_64-unknown-linux-musl/release/rocketapp ${APP}/rocketapp
+COPY --from=builder /rocketapp/target/release/rocketapp ${APP}/rocketapp
+
+RUN chown -R $APP_USER:$APP_USER ${APP}
+
+USER $APP_USER
+WORKDIR ${APP}
+
+CMD ["./rocketapp"]

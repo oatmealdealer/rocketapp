@@ -1,13 +1,13 @@
 #![feature(proc_macro_hygiene, decl_macro)]
-use rocket::{http::{RawStr, uri::Uri}, response::Redirect};
+#[macro_use] extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
+extern crate openssl;
+#[macro_use] extern crate diesel;
+use rocket::response::Redirect;
 use diesel::PgConnection;
 pub mod schema;
 pub mod models;
-use self::models::*;
 
-#[macro_use] extern crate rocket;
-#[macro_use] extern crate rocket_contrib;
-#[macro_use] extern crate diesel;
 
 
 #[database("diesel_postgres")]
