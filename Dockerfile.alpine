@@ -9,13 +9,18 @@ RUN rm src/*.rs
 
 ADD . ./
 
-# RUN rm ./target/x86_64-unknown-linux-musl/release/deps/rocketapp*
 RUN rm ./target/release/deps/rocketapp*
 RUN cargo build --release
 
 FROM alpine:latest
 
 ARG APP=/usr/src/app
+ENV PATH=${APP}:$PATH
+
+RUN apk update \
+    && apk add --no-cache ca-certificates tzdata postgresql-dev \
+    && rm -rf /var/cache/apk/*
+
 EXPOSE 8000
 
 ENV TZ=Etc/UTC \
@@ -24,11 +29,6 @@ ENV TZ=Etc/UTC \
 RUN addgroup -S $APP_USER \
     && adduser -S -g $APP_USER $APP_USER
 
-RUN apk update \
-    && apk add --no-cache ca-certificates tzdata postgresql-dev \
-    && rm -rf /var/cache/apk/*
-
-# COPY --from=builder /home/rust/src/rocketapp/target/x86_64-unknown-linux-musl/release/rocketapp ${APP}/rocketapp
 COPY --from=builder /rocketapp/target/release/rocketapp ${APP}/rocketapp
 
 RUN chown -R $APP_USER:$APP_USER ${APP}
@@ -36,4 +36,6 @@ RUN chown -R $APP_USER:$APP_USER ${APP}
 USER $APP_USER
 WORKDIR ${APP}
 
-CMD ["./rocketapp"]
+# CMD ["./rocketapp"]
+# CMD rocketapp
+CMD cwd

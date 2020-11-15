@@ -1,0 +1,32 @@
+version: '3.4'
+
+services:
+  postgres:
+    image: postgres
+    container_name: db
+    environment:
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    command: postgres -c listen_addresses="*"
+  rocketapp:
+    image: rocketapp
+    container_name: rocketapp
+    build:
+      context: .
+      dockerfile: ./Dockerfile.debian
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+      ROCKET_DATABASES: "{diesel_postgres={url=\"postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}\"}}"
+      ROCKET_ENV: dev
+      ROCKET_ADDRESS: 0.0.0.0
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${DEVELOPER_EMAIL}"
+      PGADMIN_DEFAULT_PASSWORD: "${POSTGRES_DB}"
+    ports:
+      - "4321:80"
