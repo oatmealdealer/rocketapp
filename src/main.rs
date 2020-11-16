@@ -4,7 +4,7 @@
 #[macro_use] extern crate diesel;
 extern crate serde;
 use rocket_contrib::json::Json;
-use rocket::response::Redirect;
+use rocket::response::{Redirect, status};
 
 #[macro_use] extern crate diesel_migrations;
 use diesel::PgConnection;
@@ -37,19 +37,35 @@ fn home() -> Redirect {
 
 
 #[post("/posts", data="<post>")]
-fn new_post(post: Json<NewPost>, db: PgDbConn) -> Result<Json<Post>, String> {
-    // use crate::schema::posts::dsl::*;
-
-    let insert = diesel::insert_into(schema::posts::table)
-    .values(post.into_inner())
-    .get_result::<Post>(&*db);
-
-    match insert {
+fn new_post(post: Json<NewPost>, db: PgDbConn) -> Result<Json<Post>, &'static str> {
+    match post.into_inner().save(db) {
         Ok(post) => Ok(Json(post)),
-        Err(_) => Err(String::from("Failed."))
+        Err(_) => Err("An unknown error occurred.")
     }
 
 }
+
+#[get("/posts")]
+fn list_posts(db: PgDbConn) -> Result<Json<Vec<Post>>, &'static str> {
+    match Post::all(db) {
+        Ok(posts) => Ok(Json(posts)),
+        Err(_) => Err("An unknown error occurred.")
+    }
+}
+
+#[get("/posts/<id>")]
+fn get_post(db: PgDbConn, id: i32) -> Result<Json<Post>, status::NotFound<&'static str>> {
+    // use schema::posts::dsl::*;
+    let result = schema::posts::table
+    .select(schema::posts::all_columns)
+    .filter(schema::posts::id.eq(id))
+    .first::<Post>(&*db);
+    match result {
+        Ok(post) => Ok(Json(post)),
+        Err(_) => Err(status::NotFound("Not found."))
+    }
+}
+
 
 diesel_migrations::embed_migrations!("./migrations");
 
@@ -67,6 +83,6 @@ fn main() {
     .expect("Failed to run migrations");
 
     rocket.attach(PgDbConn::fairing())
-    .mount("/", routes![index, home, new_post])
+    .mount("/", routes![new_post, list_posts, get_post])
     .launch();
 }
