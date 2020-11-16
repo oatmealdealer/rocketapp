@@ -21,6 +21,8 @@ use models::post::{Post, NewPost};
 pub struct PgDbConn(PgConnection);
 
 
+pub const DEFAULT_ERROR_MSG: &str = "An unknown error occurred.";
+
 
 #[get("/<greeting>/<person>")]
 fn index(person: String, greeting: String) -> String {
@@ -40,28 +42,40 @@ fn home() -> Redirect {
 fn new_post(post: Json<NewPost>, db: PgDbConn) -> Result<Json<Post>, &'static str> {
     match post.into_inner().save(db) {
         Ok(post) => Ok(Json(post)),
-        Err(_) => Err("An unknown error occurred.")
+        Err(_) => Err(DEFAULT_ERROR_MSG)
     }
+}
 
+// #[post("/posts", data="<new_posts>", rank=2)]
+#[post("/posts/bulk_create", data="<new_posts>")]
+fn new_posts(new_posts: Json<Vec<NewPost>>, conn: PgDbConn) -> Result<Json<Vec<Post>>, &'static str> {
+    match Post::save(new_posts.into_inner(), conn) {
+        Ok(posts) => Ok(Json(posts)),
+        Err(_) => Err(DEFAULT_ERROR_MSG)
+    }
 }
 
 #[get("/posts")]
 fn list_posts(db: PgDbConn) -> Result<Json<Vec<Post>>, &'static str> {
     match Post::all(db) {
         Ok(posts) => Ok(Json(posts)),
-        Err(_) => Err("An unknown error occurred.")
+        Err(_) => Err(DEFAULT_ERROR_MSG)
     }
 }
 
 #[get("/posts/<id>")]
 fn get_post(db: PgDbConn, id: i32) -> Result<Json<Post>, status::NotFound<&'static str>> {
-    // use schema::posts::dsl::*;
-    let result = schema::posts::table
-    .select(schema::posts::all_columns)
-    .filter(schema::posts::id.eq(id))
-    .first::<Post>(&*db);
-    match result {
-        Ok(post) => Ok(Json(post)),
+    match Post::find(id, db) {
+        Some(post) => Ok(Json(post)),
+        None => Err(status::NotFound("Not found."))
+    }
+}
+
+#[delete("/posts/<id>")]
+fn delete_post(conn: PgDbConn, id: i32) -> Result<(), status::NotFound<&'static str>> {
+    // This doesn't return an error if the id doesn't exist
+    match Post::delete(id, conn) {
+        Ok(_) => Ok(()),
         Err(_) => Err(status::NotFound("Not found."))
     }
 }
@@ -83,6 +97,6 @@ fn main() {
     .expect("Failed to run migrations");
 
     rocket.attach(PgDbConn::fairing())
-    .mount("/", routes![new_post, list_posts, get_post])
+    .mount("/", routes![new_post, new_posts, list_posts, get_post, delete_post])
     .launch();
 }
