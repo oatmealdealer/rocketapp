@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I am become template, renderer of things</title>
+</head>
+<body>
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Body</th>
+            <th>Published?</th>
+        </tr>
+        {% for post in posts %}
+            <tr>
+                <td>{{ post.title }}</td>
+                <td>{{ post.body }}</td>
+                <td>{{ post.published }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    <div id="react-stuff-goes-here"></div>
+</body>
+</html>

@@ -3,13 +3,19 @@ FROM rustlang/rust:nightly as builder
 RUN USER=root cargo new --bin rocketapp
 WORKDIR ./rocketapp
 COPY ./Cargo.toml ./Cargo.toml
-RUN cargo build --release
+COPY ./Cargo.lock ./Cargo.lock
+RUN cargo build
 RUN rm src/*.rs
 
 ADD . ./
 
-RUN rm ./target/release/deps/rocketapp*
-RUN cargo build --release
+RUN rm ./target/debug/deps/rocketapp*
+
+ARG BUILD_FLAGS
+
+# RUN cargo build --release
+# RUN cargo build ${BUILD_FLAGS}
+RUN cargo build
 
 
 FROM debian:buster-slim
@@ -28,7 +34,9 @@ RUN groupadd $APP_USER \
     && useradd -g $APP_USER $APP_USER \
     && mkdir -p ${APP}
 
-COPY --from=builder /rocketapp/target/release/rocketapp ${APP}/rocketapp
+COPY --from=builder /rocketapp/target/debug/rocketapp ${APP}/rocketapp
+# COPY ./templates ${APP}/templates
+# VOLUME [ "${APP}" ]
 
 RUN chown -R $APP_USER:$APP_USER ${APP}
 

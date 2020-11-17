@@ -4,14 +4,35 @@
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate diesel_migrations;
 extern crate serde;
+use serde::Serialize;
+use rocket_contrib::templates::Template;
+use rocket_contrib::json::Json;
+use rocket_contrib::serve::StaticFiles;
 use diesel::PgConnection;
 use diesel::connection::Connection;
 
 pub mod schema;
 pub mod models;
-
+use models::post::Post;
 #[database("diesel_postgres")]
 pub struct PgDbConn(PgConnection);
+
+// TODO
+#[derive(Serialize)]
+struct Context {
+    posts: Option<Vec<Post>>
+}
+
+#[get("/")]
+fn index(conn: PgDbConn) -> Template {
+    let context = Context {
+        posts: match Post::all(conn) {
+            Ok(posts) => Some(posts),
+            Err(_) => None
+        }
+    };
+    Template::render("index", context)
+}
 
 
 pub const DEFAULT_ERROR_MSG: &str = "An unknown error occurred.";
@@ -30,7 +51,11 @@ fn main() {
     embedded_migrations::run(&temp_db_conn)
     .expect("Failed to run migrations");
 
-    rocket.attach(PgDbConn::fairing())
+    rocket
+    .attach(PgDbConn::fairing())
+    .attach(Template::fairing())
+    .mount("/", routes![index])
+    .mount("/public", StaticFiles::from("/static"))
     .mount("/posts", routes![
         models::post::routes::create_one,
         models::post::routes::create_many,
@@ -38,7 +63,6 @@ fn main() {
         models::post::routes::get_all,
         models::post::routes::update_one,
         models::post::routes::delete,
-
     ])
     .launch();
 }
