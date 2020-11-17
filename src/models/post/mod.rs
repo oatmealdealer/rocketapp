@@ -3,7 +3,7 @@ use crate::PgDbConn;
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 
-#[derive(Debug, Serialize, Queryable)]
+#[derive(Debug, Serialize, Queryable, Identifiable)]
 pub struct Post {
     pub id: i32,
     pub title: String,
@@ -25,9 +25,19 @@ pub struct NewPost {
     pub published: bool,
 }
 
+#[derive(Deserialize, AsChangeset, Identifiable)]
+#[table_name = "posts"]
+pub struct UpdatePost {
+    pub id: i32,
+    pub title: Option<String>,
+    pub body: Option<String>,
+    pub published: Option<bool>
+}
 
+pub mod routes;
 
 impl Post {
+
     pub fn new(title: String, body: String, published: bool) -> NewPost {
         NewPost {
             title,
@@ -40,7 +50,7 @@ impl Post {
         Self::new(title, body, published).save(conn)
     }
 
-    pub fn find(id: i32, conn: PgDbConn) -> Option<Self> {
+    pub fn retrieve(id: i32, conn: PgDbConn) -> Option<Self> {
         match posts::table
         .select(posts::all_columns)
         .filter(posts::id.eq(id))
@@ -48,6 +58,12 @@ impl Post {
             Ok(post) => Some(post),
             Err(_) => None
         }
+    }
+
+    pub fn update(update_post: UpdatePost, conn: PgDbConn) -> Result<Self, diesel::result::Error> {
+        diesel::update(&update_post)
+        .set(&update_post)
+        .get_result(&*conn)
     }
 
     pub fn delete(id: i32, conn: PgDbConn) -> Result<(), diesel::result::Error> {
